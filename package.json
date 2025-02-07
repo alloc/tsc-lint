@@ -19,7 +19,7 @@
   "scripts": {
     "dev": "rimraf dist && tsup --sourcemap --watch",
     "build": "rimraf dist && tsup",
-    "lint": "tsc -p . --outDir node_modules/.tmp",
+    "lint": "tsc-lint",
     "test": "vitest"
   },
   "devDependencies": {
@@ -36,6 +36,7 @@
     "debug": "^4.4.0",
     "escalade": "^3.2.0",
     "ignore": "^7.0.3",
-    "tinyglobby": "^0.2.10"
+    "tinyglobby": "^0.2.10",
+    "tsc-lint": "link:"
   }
 }

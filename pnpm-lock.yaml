@@ -20,6 +20,9 @@ importers:
       tinyglobby:
         specifier: ^0.2.10
         version: 0.2.10
+      tsc-lint:
+        specifier: 'link:'
+        version: 'link:'
     devDependencies:
       '@alloc/prettier-config':
         specifier: ^1.0.0
