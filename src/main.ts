@@ -132,7 +132,7 @@ for (const gitIgnorePath of globSync('**/.gitignore', globOptions)) {
 
 const rootDirs = positionals.length > 0 ? positionals : ['.']
 
-const tsconfigs = rootDirs
+const tsconfigPaths = rootDirs
   .flatMap(cwd => {
     return globSync('**/tsconfig.json', {
       ...globOptions,
@@ -151,10 +151,10 @@ const tsconfigs = rootDirs
 const nodeModulesDir = path.dirname(tscPath)
 const tscOutputDir = path.join(nodeModulesDir, '.tsc-lint')
 
-parallel({ limit: cpus().length }, tsconfigs, tsconfig => {
+parallel({ limit: cpus().length }, tsconfigPaths, tsconfigPath => {
   return new Promise<void>((resolve, reject) => {
-    const tsconfigDir = path.dirname(tsconfig)
-    console.log(cyan(`◌ Using ./${path.relative(cwd, tsconfig)}`))
+    const tsconfigDir = path.dirname(tsconfigPath)
+    console.log(cyan(`◌ Using ./${path.relative(cwd, tsconfigPath)}`))
 
     // Handle cases where a package depends on a different TypeScript version.
     let ownTscPath: string | undefined
@@ -172,7 +172,7 @@ parallel({ limit: cpus().length }, tsconfigs, tsconfig => {
       ownTscPath ?? tscPath!,
       [
         '--project',
-        tsconfig,
+        tsconfigPath,
         '--outDir',
         tscOutputDir,
         '--declaration',
