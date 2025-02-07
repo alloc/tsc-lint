@@ -7,7 +7,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { cpus } from 'node:os'
 import path from 'node:path'
 import util from 'node:util'
-import { parallel, select } from 'radashi'
+import { dedent, parallel, select } from 'radashi'
 import { GlobOptions, globSync } from 'tinyglobby'
 
 const cwd = process.cwd()
@@ -68,7 +68,7 @@ if (!tscPath) {
   process.exit(1)
 }
 
-const { positionals, values } = util.parseArgs({
+const { positionals, values: argv } = util.parseArgs({
   allowPositionals: true,
   options: {
     ignore: {
@@ -76,11 +76,24 @@ const { positionals, values } = util.parseArgs({
       multiple: true,
       short: 'i',
     },
+    help: {
+      type: 'boolean',
+    },
   },
 })
 
+if (argv.help) {
+  console.log(dedent`
+    Usage: tsc-lint [...directories]
+
+    Options:
+    -i, --ignore <path>  Ignore paths matching the given pattern
+  `)
+  process.exit(0)
+}
+
 const globOptions: GlobOptions = (() => {
-  const ignoredPaths = new Set(values.ignore)
+  const ignoredPaths = new Set(argv.ignore)
   ignoredPaths.add('**/node_modules/**')
   return {
     ignore: [...ignoredPaths],
