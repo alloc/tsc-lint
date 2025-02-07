@@ -173,11 +173,14 @@ const tsconfigs = await Promise.all(
       const files = tsconfig.files.filter((file: string) =>
         fileExists(path.resolve(tsconfigDir, file))
       )
-      return files.length > 0
-        ? { path: tsconfigFile, dir: tsconfigDir, files }
-        : undefined
+      if (files.length > 0) {
+        return { path: tsconfigFile, dir: tsconfigDir, files }
+      }
+      debug(`Skipped tsconfig with no files: ${tsconfigFile}`)
+      return
     }
     if (tsconfig.include?.length === 0) {
+      debug(`Skipped tsconfig with no files: ${tsconfigFile}`)
       return
     }
     const files = globSync(tsconfig.include ?? '**/*', {
@@ -189,9 +192,10 @@ const tsconfigs = await Promise.all(
       ],
       dot: true,
     })
-    return files.length > 0
-      ? { path: tsconfigFile, dir: tsconfigDir, files }
-      : undefined
+    if (files.length > 0) {
+      return { path: tsconfigFile, dir: tsconfigDir, files }
+    }
+    debug(`Skipped tsconfig with no files: ${tsconfigFile}`)
   })
 )
 
