@@ -170,8 +170,10 @@ const tsconfigs = await Promise.all(
   select(results, ({ tsconfig, tsconfigFile }) => {
     const tsconfigDir = path.dirname(tsconfigFile)
     if (tsconfig.files) {
-      const files = tsconfig.files.filter((file: string) =>
-        fileExists(path.resolve(tsconfigDir, file))
+      const files = tsconfig.files.filter(
+        (file: string) =>
+          path.basename(file) !== 'tsconfig.json' &&
+          fileExists(path.resolve(tsconfigDir, file))
       )
       if (files.length > 0) {
         return { path: tsconfigFile, dir: tsconfigDir, files }
@@ -183,13 +185,14 @@ const tsconfigs = await Promise.all(
       debug(`Skipped tsconfig with no files: ${tsconfigFile}`)
       return
     }
+    const exclude: string[] = tsconfig.exclude ?? [
+      '**/node_modules',
+      '**/bower_components',
+      '**/jspm_packages',
+    ]
     const files = globSync(tsconfig.include ?? '**/*', {
       cwd: tsconfigDir,
-      ignore: tsconfig.exclude ?? [
-        '**/node_modules',
-        '**/bower_components',
-        '**/jspm_packages',
-      ],
+      ignore: [...exclude, '**/tsconfig.json'],
       dot: true,
     })
     if (files.length > 0) {
