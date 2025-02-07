@@ -35,4 +35,11 @@ Finally, I should mention how the `tsc` output is processed. When a compiler err
 tsc-lint --help
 ```
 
+## Troubleshooting
+
+```sh
+# Enable debug logging.
+DEBUG="tsc-lint" pnpm lint
+```
+
 [1]: https://www.typescriptlang.org/docs/handbook/project-references.html
