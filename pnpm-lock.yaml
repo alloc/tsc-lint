@@ -20,9 +20,6 @@ importers:
       tinyglobby:
         specifier: ^0.2.10
         version: 0.2.10
-      tsc-lint:
-        specifier: 'link:'
-        version: 'link:'
       tsconfck:
         specifier: ^3.1.5
         version: 3.1.5(typescript@5.7.3)
@@ -45,6 +42,9 @@ importers:
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
+      tsc-lint:
+        specifier: 'link:'
+        version: 'link:'
       tsup:
         specifier: ^8.3.6
         version: 8.3.6(postcss@8.4.49)(typescript@5.7.3)
