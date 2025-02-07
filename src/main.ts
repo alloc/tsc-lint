@@ -183,8 +183,8 @@ parallel({ limit: cpus().length }, tsconfigs, tsconfig => {
       }
     )
 
-    child.stderr!.setEncoding('utf8')
-    child.stderr!.on('data', (data: string) => {
+    child.stderr.setEncoding('utf8')
+    child.stderr.on('data', (data: string) => {
       process.stderr.write(data)
     })
 
