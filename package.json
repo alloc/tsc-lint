@@ -13,7 +13,7 @@
   "author": "Alec Larson",
   "repository": {
     "type": "git",
-    "url": "https://github.com/aleclarson/tsc-lint.git"
+    "url": "https://github.com/alloc/tsc-lint.git"
   },
   "prettier": "@alloc/prettier-config",
   "scripts": {
