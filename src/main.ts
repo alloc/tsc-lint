@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import createDebug from 'debug'
 import ignore from 'ignore'
+import { cyan } from 'nanocolors'
 import { spawn } from 'node:child_process'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { cpus } from 'node:os'
@@ -153,7 +154,7 @@ const tscOutputDir = path.join(nodeModulesDir, '.tsc-lint')
 parallel({ limit: cpus().length }, tsconfigs, tsconfig => {
   return new Promise<void>((resolve, reject) => {
     const tsconfigDir = path.dirname(tsconfig)
-    console.log(`Using ${path.relative(cwd, tsconfig)}`)
+    console.log(cyan(`◌ Using ./${path.relative(cwd, tsconfig)}`))
 
     // Handle cases where a package depends on a different TypeScript version.
     let ownTscPath: string | undefined
