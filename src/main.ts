@@ -9,6 +9,7 @@ import path from 'node:path'
 import util from 'node:util'
 import { dedent, parallel, select } from 'radashi'
 import { GlobOptions, globSync } from 'tinyglobby'
+import * as tsconfck from 'tsconfck'
 
 const cwd = process.cwd()
 const debug = createDebug('tsc-lint')
@@ -161,17 +162,49 @@ const tsconfigPaths = rootDirs
     return true
   })
 
-const nodeModulesDir = path.dirname(tscPath)
+const tsconfigs = await Promise.all(
+  tsconfigPaths.map(tsconfigPath => {
+    return tsconfck.parse(tsconfigPath)
+  })
+).then(results =>
+  select(results, ({ tsconfig, tsconfigFile }) => {
+    const tsconfigDir = path.dirname(tsconfigFile)
+    if (tsconfig.files) {
+      const files = tsconfig.files.filter((file: string) =>
+        fileExists(path.resolve(tsconfigDir, file))
+      )
+      return files.length > 0
+        ? { path: tsconfigFile, dir: tsconfigDir, files }
+        : undefined
+    }
+    if (tsconfig.include?.length === 0) {
+      return
+    }
+    const files = globSync(tsconfig.include ?? '**/*', {
+      cwd: tsconfigDir,
+      ignore: tsconfig.exclude ?? [
+        '**/node_modules',
+        '**/bower_components',
+        '**/jspm_packages',
+      ],
+      dot: true,
+    })
+    return files.length > 0
+      ? { path: tsconfigFile, dir: tsconfigDir, files }
+      : undefined
+  })
+)
+
+const nodeModulesDir = path.resolve(tscPath, '../..')
 const tscOutputDir = path.join(nodeModulesDir, '.tsc-lint')
 
-parallel({ limit: cpus().length }, tsconfigPaths, tsconfigPath => {
+await parallel({ limit: cpus().length }, tsconfigs, tsconfig => {
   return new Promise<void>((resolve, reject) => {
-    const tsconfigDir = path.dirname(tsconfigPath)
-    console.log(cyan(`◌ Using ./${path.relative(cwd, tsconfigPath)}`))
+    console.log(cyan(`◌ Using ./${path.relative(cwd, tsconfig.path)}`))
 
     // Handle cases where a package depends on a different TypeScript version.
     let ownTscPath: string | undefined
-    findUp(tsconfigDir, (dir, files) => {
+    findUp(tsconfig.dir, (dir, files) => {
       if (files.includes('node_modules')) {
         const tscPath = path.join(dir, 'node_modules/.bin/tsc')
         if (fileExists(tscPath)) {
@@ -185,7 +218,7 @@ parallel({ limit: cpus().length }, tsconfigPaths, tsconfigPath => {
       ownTscPath ?? tscPath!,
       [
         '--project',
-        tsconfigPath,
+        tsconfig.path,
         '--outDir',
         tscOutputDir,
         '--declaration',
