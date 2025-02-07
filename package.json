@@ -2,7 +2,7 @@
   "name": "tsc-lint",
   "description": "Run tsc in parallel on multiple tsconfigs",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "bin": {
     "tsc-lint": "./dist/main.js"
   },
