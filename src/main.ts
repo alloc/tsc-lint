@@ -68,7 +68,7 @@ if (!tscPath) {
   process.exit(1)
 }
 
-const { positionals, values: argv } = util.parseArgs({
+const { positionals: args, values: options } = util.parseArgs({
   allowPositionals: true,
   options: {
     ignore: {
@@ -82,7 +82,7 @@ const { positionals, values: argv } = util.parseArgs({
   },
 })
 
-if (argv.help) {
+if (options.help) {
   console.log(dedent`
     Usage: tsc-lint [...directories]
 
@@ -93,7 +93,7 @@ if (argv.help) {
 }
 
 const globOptions: GlobOptions = (() => {
-  const ignoredPaths = new Set(argv.ignore)
+  const ignoredPaths = new Set(options.ignore)
   ignoredPaths.add('**/node_modules/**')
   return {
     ignore: [...ignoredPaths],
@@ -143,7 +143,7 @@ for (const gitIgnorePath of globSync('**/.gitignore', globOptions)) {
   gitIgnore.add(patterns)
 }
 
-const rootDirs = positionals.length > 0 ? positionals : ['.']
+const rootDirs = args.length > 0 ? args : ['.']
 
 const tsconfigPaths = rootDirs
   .flatMap(cwd => {
