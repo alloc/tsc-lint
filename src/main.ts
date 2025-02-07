@@ -176,7 +176,12 @@ const tsconfigs = await Promise.all(
           fileExists(path.resolve(tsconfigDir, file))
       )
       if (files.length > 0) {
-        return { path: tsconfigFile, dir: tsconfigDir, files }
+        return {
+          path: tsconfigFile,
+          dir: tsconfigDir,
+          files,
+          noEmit: tsconfig.compilerOptions?.noEmit,
+        }
       }
       debug(`Skipped tsconfig with no files: ${tsconfigFile}`)
       return
@@ -196,7 +201,12 @@ const tsconfigs = await Promise.all(
       dot: true,
     })
     if (files.length > 0) {
-      return { path: tsconfigFile, dir: tsconfigDir, files }
+      return {
+        path: tsconfigFile,
+        dir: tsconfigDir,
+        files,
+        noEmit: tsconfig.compilerOptions?.noEmit,
+      }
     }
     debug(`Skipped tsconfig with no files: ${tsconfigFile}`)
   })
@@ -221,20 +231,14 @@ await parallel({ limit: cpus().length }, tsconfigs, tsconfig => {
       }
     })
 
-    const child = spawn(
-      ownTscPath ?? tscPath!,
-      [
-        '--project',
-        tsconfig.path,
-        '--outDir',
-        tscOutputDir,
-        '--declaration',
-        '--emitDeclarationOnly',
-      ],
-      {
-        stdio: ['ignore', 'inherit', 'pipe'],
-      }
-    )
+    const tscArgs = ['--project', tsconfig.path, '--outDir', tscOutputDir]
+    if (!tsconfig.noEmit) {
+      tscArgs.push('--declaration', '--emitDeclarationOnly')
+    }
+
+    const child = spawn(ownTscPath ?? tscPath!, tscArgs, {
+      stdio: ['ignore', 'inherit', 'pipe'],
+    })
 
     child.stderr.setEncoding('utf8')
     child.stderr.on('data', (data: string) => {

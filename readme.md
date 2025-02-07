@@ -25,7 +25,11 @@ By default, the working directory is searched for `tsconfig.json` files. You can
 pnpm lint test
 ```
 
-Importantly, you **must not** have `noEmit` in your `tsconfig.json` files. The emit step is critical for catching certain errors, which is why `tsc-lint` uses the `--emitDeclarationOnly` option instead.
+### noEmit vs emitDeclarationOnly
+
+If your project is consumed by other projects (e.g. a library), you **should not** have `noEmit` in your `tsconfig.json` files. The emit step is critical for catching certain errors, which is why `tsc-lint` uses the `--emitDeclarationOnly` option instead.
+
+If you _are_ using `noEmit`, that will be detected and `tsc-lint` will avoid the emit step.
 
 ## Options
 
