@@ -88,39 +88,45 @@ const globOptions: GlobOptions = (() => {
 })()
 
 for (const gitIgnorePath of globSync('**/.gitignore', globOptions)) {
-  // Looking for nested gitignores.
-  if (gitIgnorePath !== '.gitignore') {
-    const dir = path.dirname(gitIgnorePath)
-    const patterns = readFileSync(gitIgnorePath, 'utf8')
-      .split('\n')
-      .map(line => {
-        if (line[0] === '#' || /^\s*$/.test(line)) {
-          return line
-        }
-        let prefix = ''
-        if (line[0] === '!') {
-          prefix = '!'
-          line = line.slice(1)
-        }
-        if (line[0] === '/') {
-          line = '/' + path.join(dir, line.slice(1))
-        } else {
-          line = path.join(dir, '**', line)
-        }
-        return prefix + line
-      })
-
-    if (debug.enabled) {
-      debug(`Ignoring paths from ${gitIgnorePath}`)
-      debug(
-        select(patterns, pattern =>
-          pattern && pattern[0] !== '#' ? `  ${pattern}` : undefined
-        ).join('\n')
-      )
-    }
-
-    gitIgnore.add(patterns)
+  // Skip the root gitignore, which is already added.
+  if (gitIgnorePath === '.gitignore') {
+    continue
   }
+  // Skip if the gitignore file is ignored.
+  if (gitIgnore.ignores(gitIgnorePath)) {
+    continue
+  }
+
+  const dir = path.dirname(gitIgnorePath)
+  const patterns = readFileSync(gitIgnorePath, 'utf8')
+    .split('\n')
+    .map(line => {
+      if (line[0] === '#' || /^\s*$/.test(line)) {
+        return line
+      }
+      let prefix = ''
+      if (line[0] === '!') {
+        prefix = '!'
+        line = line.slice(1)
+      }
+      if (line[0] === '/') {
+        line = '/' + path.join(dir, line.slice(1))
+      } else {
+        line = path.join(dir, '**', line)
+      }
+      return prefix + line
+    })
+
+  if (debug.enabled) {
+    debug(`Ignoring paths from ${gitIgnorePath}`)
+    debug(
+      select(patterns, pattern =>
+        pattern && pattern[0] !== '#' ? `  ${pattern}` : undefined
+      ).join('\n')
+    )
+  }
+
+  gitIgnore.add(patterns)
 }
 
 const rootDirs = positionals.length > 0 ? positionals : ['.']
