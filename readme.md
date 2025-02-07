@@ -27,6 +27,8 @@ pnpm lint test
 
 Importantly, you **must not** have `noEmit` in your `tsconfig.json` files. The emit step is critical for catching certain errors, which is why `tsc-lint` uses the `--emitDeclarationOnly` option instead.
 
+Finally, I should mention how the `tsc` output is processed. When a compiler error is reported, `tsc-lint` will rewrite the error's file path to be relative to the working directory. This allows you to click into the file from your terminal, even if the error comes from a nested tsconfig.
+
 ## Options
 
 ```sh
