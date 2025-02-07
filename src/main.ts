@@ -185,17 +185,6 @@ parallel({ limit: cpus().length }, tsconfigs, tsconfig => {
 
     child.stderr!.setEncoding('utf8')
     child.stderr!.on('data', (data: string) => {
-      // Resolve relative paths to ones relative to the current working directory.
-      data = data.replace(
-        /^([^\S]+)(:\d+:\d+)\b/gm,
-        (match, file, location) => {
-          file = path.resolve(tsconfigDir, file)
-          if (fileExists(file)) {
-            return `${path.relative(cwd, file)}${location}`
-          }
-          return match
-        }
-      )
       process.stderr.write(data)
     })
 
