@@ -4,6 +4,8 @@ Run `tsc` on multiple tsconfigs in parallel. Your `tsconfig.json` files are disc
 
 **Note:** [Project references][1] are not supported.
 
+<img src="https://raw.githubusercontent.com/alloc/tsc-lint/main/.github/screenshot.png" alt="tsc-lint screenshot" />
+
 ```sh
 pnpm add tsc-lint -D
 ```
