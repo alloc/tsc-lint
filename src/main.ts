@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import createDebug from 'debug'
 import ignore from 'ignore'
-import { cyan } from 'nanocolors'
+import { cyan, gray, red, yellow } from 'nanocolors'
 import { spawn } from 'node:child_process'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { cpus } from 'node:os'
@@ -162,19 +162,26 @@ const tsconfigPaths = rootDirs
     return true
   })
 
-const tsconfigs = await Promise.all(
-  tsconfigPaths.map(tsconfigPath => {
-    return tsconfck.parse(tsconfigPath)
-  })
-).then(results =>
-  select(results, ({ tsconfig, tsconfigFile }) => {
+type TsConfig = {
+  path: string
+  dir: string
+  files: string[]
+  noEmit: boolean
+}
+
+const tsconfigs = select(
+  await Promise.all(
+    tsconfigPaths.map(tsconfigPath => tsconfck.parse(tsconfigPath))
+  ),
+  ({ tsconfig, tsconfigFile }): TsConfig | undefined => {
     const tsconfigDir = path.dirname(tsconfigFile)
     if (tsconfig.files) {
-      const files = tsconfig.files.filter(
-        (file: string) =>
-          path.basename(file) !== 'tsconfig.json' &&
-          fileExists(path.resolve(tsconfigDir, file))
-      )
+      const files = (tsconfig.files as string[])
+        .map(file => path.resolve(tsconfigDir, file))
+        .filter(
+          file => path.basename(file) !== 'tsconfig.json' && fileExists(file)
+        )
+
       if (files.length > 0) {
         return {
           path: tsconfigFile,
@@ -183,23 +190,29 @@ const tsconfigs = await Promise.all(
           noEmit: tsconfig.compilerOptions?.noEmit,
         }
       }
+
       debug(`Skipped tsconfig with no files: ${tsconfigFile}`)
       return
     }
+
     if (tsconfig.include?.length === 0) {
       debug(`Skipped tsconfig with no files: ${tsconfigFile}`)
       return
     }
+
     const exclude: string[] = tsconfig.exclude ?? [
       '**/node_modules',
       '**/bower_components',
       '**/jspm_packages',
     ]
+
     const files = globSync(tsconfig.include ?? '**/*', {
       cwd: tsconfigDir,
+      absolute: true,
       ignore: [...exclude, '**/tsconfig.json'],
       dot: true,
     })
+
     if (files.length > 0) {
       return {
         path: tsconfigFile,
@@ -208,17 +221,35 @@ const tsconfigs = await Promise.all(
         noEmit: tsconfig.compilerOptions?.noEmit,
       }
     }
+
     debug(`Skipped tsconfig with no files: ${tsconfigFile}`)
-  })
+  }
 )
+
+console.log(`🔍 Found ${yellow(tsconfigs.length)} tsconfig files.`)
 
 const nodeModulesDir = path.resolve(tscPath, '../..')
 const tscOutputDir = path.join(nodeModulesDir, '.tsc-lint')
 
-await parallel({ limit: cpus().length }, tsconfigs, tsconfig => {
-  return new Promise<void>((resolve, reject) => {
-    console.log(cyan(`◌ Using ./${path.relative(cwd, tsconfig.path)}`))
+// Sort deeper tsconfigs first.
+tsconfigs.sort((a, b) => a.path.length - b.path.length)
 
+const checkedFiles = new Set<string>()
+const runCheck = (tsconfig: TsConfig) => {
+  // Filter out files already covered by a deeper tsconfig.
+  const files = select(
+    tsconfig.files,
+    file => path.relative(cwd, file),
+    file => {
+      if (checkedFiles.has(file)) {
+        return false
+      }
+      checkedFiles.add(file)
+      return true
+    }
+  )
+
+  return new Promise<void>((resolve, reject) => {
     // Handle cases where a package depends on a different TypeScript version.
     let ownTscPath: string | undefined
     findUp(tsconfig.dir, (dir, files) => {
@@ -237,23 +268,61 @@ await parallel({ limit: cpus().length }, tsconfigs, tsconfig => {
     }
 
     const child = spawn(ownTscPath ?? tscPath!, tscArgs, {
-      stdio: ['ignore', 'inherit', 'pipe'],
+      stdio: ['ignore', 'pipe', 'inherit'],
     })
 
-    child.stderr.setEncoding('utf8')
-    child.stderr.on('data', (data: string) => {
-      process.stderr.write(data)
+    let buffer = ''
+
+    child.stdout.setEncoding('utf8')
+    child.stdout.on('data', (data: string) => {
+      buffer += data
     })
 
     child.on('error', reject)
     child.on('close', code => {
-      if (code !== 0) {
+      const errors =
+        code !== 0
+          ? Array.from(
+              buffer.matchAll(/^(\S+?)\((\d+),(\d+)\): error (TS\d+): (.*)$/gm)
+            ).filter(([, file]) => files.includes(file))
+          : []
+
+      if (errors.length > 0) {
         process.exitCode = 1
+        console.log(
+          '\n🔻 ' +
+            `Found ${red(errors.length)} error${errors.length === 1 ? '' : 's'} with ` +
+            cyan(path.relative(cwd, tsconfig.path))
+        )
+        for (const [, file, line, column, code, message] of errors) {
+          console.log(
+            '\n' +
+              cyan(file) +
+              ':' +
+              yellow(line) +
+              ':' +
+              yellow(column) +
+              ' - ' +
+              red('error') +
+              ' ' +
+              gray(code) +
+              '\n  ' +
+              message
+          )
+        }
+      } else {
+        console.log(
+          '\n✨ ' +
+            `Found ${gray(0)} errors with ` +
+            gray(path.relative(cwd, tsconfig.path))
+        )
       }
       resolve()
     })
   })
-}).catch(error => {
+}
+
+await parallel({ limit: cpus().length }, tsconfigs, runCheck).catch(error => {
   const { errors } = error as AggregateError
   for (const error of errors) {
     console.error(error)
