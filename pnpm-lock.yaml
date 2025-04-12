@@ -17,6 +17,9 @@ importers:
       nanocolors:
         specifier: ^0.2.13
         version: 0.2.13
+      picomatch:
+        specifier: ^4.0.2
+        version: 4.0.2
       tinyglobby:
         specifier: ^0.2.10
         version: 0.2.10
@@ -33,12 +36,15 @@ importers:
       '@types/node':
         specifier: ^22.13.1
         version: 22.13.1
+      '@types/picomatch':
+        specifier: ^3.0.2
+        version: 3.0.2
       prettier:
         specifier: ^3.4.2
         version: 3.4.2
       radashi:
-        specifier: 13.0.0-beta.ffa4778
-        version: 13.0.0-beta.ffa4778
+        specifier: 12.5.0-beta.6d5c035
+        version: 12.5.0-beta.6d5c035
       rimraf:
         specifier: ^6.0.1
         version: 6.0.1
@@ -340,6 +346,9 @@ packages:
   '@types/node@22.13.1':
     resolution: {integrity: sha512-jK8uzQlrvXqEU91UxiK5J7pKHyzgnI1Qnl0QDHIgVGuolJhRb9EEl28Cj9b3rGR8B2lhFCtvIm5os8lFnO/1Ew==}
 
+  '@types/picomatch@3.0.2':
+    resolution: {integrity: sha512-n0i8TD3UDB7paoMMxA3Y65vUncFJXjcUf7lQY7YyKGl6031FNjfsLs6pdLFCy2GNFxItPJG8GvvpbZc2skH7WA==}
+
   ansi-regex@5.0.1:
     resolution: {integrity: sha512-quJQXlTSUGL2LH9SUXo8VwsY4soanhgo6LNSm84E1LBcE8s3O0wpdiRzyR9z/ZZJMlMWv37qOOb9pdJlMUEKFQ==}
     engines: {node: '>=8'}
@@ -577,8 +586,8 @@ packages:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
 
-  radashi@13.0.0-beta.ffa4778:
-    resolution: {integrity: sha512-hjuQJ787SpfHU7CMY+Y5i6dagK6EecKaHrRZjQS9ct31eJNankhngArFQxCcVnj5CdiKn1MVsGGZIfUNUC38iw==}
+  radashi@12.5.0-beta.6d5c035:
+    resolution: {integrity: sha512-BZj5u0MvuPuTQT7qpDRBIxcnt4JUYMkjx9k8kJ5+RM7ngmWrUiCiypMYd8istimerSKwaNGkrAY45KMjH/rYhA==}
     engines: {node: '>=16.0.0'}
 
   readdirp@4.1.1:
@@ -897,6 +906,8 @@ snapshots:
     dependencies:
       undici-types: 6.20.0
 
+  '@types/picomatch@3.0.2': {}
+
   ansi-regex@5.0.1: {}
 
   ansi-regex@6.1.0: {}
@@ -1102,7 +1113,7 @@ snapshots:
 
   punycode@2.3.1: {}
 
-  radashi@13.0.0-beta.ffa4778: {}
+  radashi@12.5.0-beta.6d5c035: {}
 
   readdirp@4.1.1: {}
 

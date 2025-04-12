@@ -7,8 +7,17 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { cpus } from 'node:os'
 import path from 'node:path'
 import util from 'node:util'
-import { dedent, parallel, select } from 'radashi'
-import { GlobOptions, globSync } from 'tinyglobby'
+import picomatch from 'picomatch'
+import {
+  concat,
+  dedent,
+  parallel,
+  select,
+  sift,
+  timeout,
+  TimeoutError,
+} from 'radashi'
+import { glob, GlobOptions, globSync } from 'tinyglobby'
 import * as tsconfck from 'tsconfck'
 
 const cwd = process.cwd()
@@ -93,13 +102,13 @@ if (options.help) {
   process.exit(0)
 }
 
-const globOptions: GlobOptions = (() => {
+const globOptions = (() => {
   const ignoredPaths = new Set(options.ignore)
   ignoredPaths.add('**/node_modules/**')
   return {
     ignore: [...ignoredPaths],
     dot: true,
-  }
+  } satisfies GlobOptions
 })()
 
 for (const gitIgnorePath of globSync('**/.gitignore', globOptions)) {
@@ -133,7 +142,7 @@ for (const gitIgnorePath of globSync('**/.gitignore', globOptions)) {
     })
 
   if (debug.enabled) {
-    debug(`Ignoring paths from ${gitIgnorePath}`)
+    debug(`Ignoring paths from ${path.join(cwd, gitIgnorePath)}`)
     debug(
       select(patterns, pattern =>
         pattern && pattern[0] !== '#' ? `  ${pattern}` : undefined
@@ -162,56 +171,42 @@ const tsconfigPaths = rootDirs
     return true
   })
 
+if (debug.enabled) {
+  debug(`Parsing ${yellow(tsconfigPaths.length)} tsconfig files`)
+  tsconfigPaths.forEach(tsconfigPath => {
+    debug(`  ${tsconfigPath}`)
+  })
+}
+
 type TsConfig = {
   path: string
   dir: string
   files: string[]
-  noEmit: boolean
+  noEmit?: boolean
 }
 
-const tsconfigs = select(
-  await Promise.all(
-    tsconfigPaths.map(tsconfigPath => tsconfck.parse(tsconfigPath))
-  ),
-  ({ tsconfig, tsconfigFile }): TsConfig | undefined => {
-    const tsconfigDir = path.dirname(tsconfigFile)
-    if (tsconfig.files) {
-      const files = (tsconfig.files as string[])
-        .map(file => path.resolve(tsconfigDir, file))
-        .filter(
-          file => path.basename(file) !== 'tsconfig.json' && fileExists(file)
-        )
+const parseTsConfig = async (
+  tsconfigPath: string
+): Promise<TsConfig | undefined> => {
+  const parseResult = await tsconfck.parse(tsconfigPath)
+  const tsconfigFile = parseResult.tsconfigFile as string
+  const tsconfigDir = path.dirname(tsconfigFile)
 
-      if (files.length > 0) {
-        return {
-          path: tsconfigFile,
-          dir: tsconfigDir,
-          files,
-          noEmit: tsconfig.compilerOptions?.noEmit,
-        }
-      }
-
-      debug(`Skipped tsconfig with no files: ${tsconfigFile}`)
-      return
+  const tsconfig = parseResult.tsconfig as {
+    files?: string[]
+    include?: string[]
+    exclude?: string[]
+    compilerOptions?: {
+      noEmit?: boolean
     }
+  }
 
-    if (tsconfig.include?.length === 0) {
-      debug(`Skipped tsconfig with no files: ${tsconfigFile}`)
-      return
-    }
-
-    const exclude: string[] = tsconfig.exclude ?? [
-      '**/node_modules',
-      '**/bower_components',
-      '**/jspm_packages',
-    ]
-
-    const files = globSync(tsconfig.include ?? '**/*', {
-      cwd: tsconfigDir,
-      absolute: true,
-      ignore: [...exclude, '**/tsconfig.json'],
-      dot: true,
-    })
+  if (tsconfig.files) {
+    const files = tsconfig.files
+      .map(file => path.resolve(tsconfigDir, file))
+      .filter(
+        file => path.basename(file) !== 'tsconfig.json' && fileExists(file)
+      )
 
     if (files.length > 0) {
       return {
@@ -223,10 +218,94 @@ const tsconfigs = select(
     }
 
     debug(`Skipped tsconfig with no files: ${tsconfigFile}`)
+    return
   }
-)
 
-console.log(`🔍 Found ${yellow(tsconfigs.length)} tsconfig files.`)
+  if (tsconfig.include?.length === 0) {
+    debug(`Skipped tsconfig with no files: ${tsconfigFile}`)
+    return
+  }
+
+  const exclude: string[] = tsconfig.exclude ?? [
+    '**/node_modules',
+    '**/bower_components',
+    '**/jspm_packages',
+  ]
+
+  let outOfRootInclude: string[] | undefined
+
+  const include = tsconfig.include?.filter(pattern => {
+    if (pattern.startsWith('../')) {
+      outOfRootInclude ||= []
+      outOfRootInclude.push(pattern)
+      return false
+    }
+    return true
+  })
+
+  if (debug.enabled) {
+    debug(
+      `Finding files that match ${yellow(JSON.stringify(include ?? '**/*'))} in ${tsconfigDir}`
+    )
+  }
+
+  const fileOptions = {
+    cwd: tsconfigDir,
+    absolute: true,
+    ignore: [...exclude, ...globOptions.ignore, '**/tsconfig.json'],
+    dot: true,
+  } satisfies GlobOptions
+
+  let files = await glob(include ?? '**/*', fileOptions)
+
+  if (outOfRootInclude) {
+    const roots = new Map<string, string[]>()
+    for (const pattern of outOfRootInclude) {
+      const resolvedPattern = path.resolve(tsconfigDir, pattern)
+      const { base, glob } = picomatch.scan(resolvedPattern)
+      roots.set(base, concat(glob || '**/*', roots.get(base)))
+    }
+    const outOfRootFiles = await Promise.all(
+      Array.from(roots, ([cwd, globs]) => {
+        if (debug.enabled) {
+          debug(
+            `Finding files that match ${yellow(JSON.stringify(globs))} in ${cwd}`
+          )
+        }
+        return glob(globs, { ...fileOptions, cwd })
+      })
+    )
+    files = concat(files, outOfRootFiles.flat())
+  }
+
+  if (files.length > 0) {
+    debug(`Found tsconfig with ${yellow(files.length)} files: ${tsconfigFile}`)
+    return {
+      path: tsconfigFile,
+      dir: tsconfigDir,
+      files,
+      noEmit: tsconfig.compilerOptions?.noEmit,
+    }
+  }
+
+  debug(`Skipped tsconfig with no files: ${tsconfigFile}`)
+}
+
+const tsconfigs = sift(
+  await Promise.all(
+    tsconfigPaths.map(tsconfigPath =>
+      Promise.race([parseTsConfig(tsconfigPath), timeout(3000)]).catch(
+        error => {
+          if (error instanceof TimeoutError) {
+            console.error(red(`Timed out while parsing ${tsconfigPath}`))
+            return null
+          }
+          throw error
+        }
+      )
+    )
+  )
+)
 
 const nodeModulesDir = path.resolve(tscPath, '../..')
 const tscOutputDir = path.join(nodeModulesDir, '.tsc-lint')
